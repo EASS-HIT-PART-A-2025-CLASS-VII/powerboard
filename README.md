@@ -398,7 +398,7 @@ Before you begin, ensure you have the following installed:
    cp backend/.env.example backend/.env
 
    # Create frontend environment file
-   cp frontend/.env.example frontend/.env
+   cp frontend/.env.example frontend/.env.local frontend/.env.production
    ```
 
 ### Environment Setup
