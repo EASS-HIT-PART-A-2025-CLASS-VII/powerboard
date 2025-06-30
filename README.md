@@ -399,7 +399,15 @@ Before you begin, ensure you have the following installed:
 
    # Create frontend environment file
    cp frontend/.env.example frontend/.env
+   
+   # Important:
+   # For the frontend build to work correctly with Docker Compose, you must move or copy the frontend/.env file to the root folder, next to docker-compose.yml, and rename it to .env:
+   
+   cp frontend/.env .env
    ```
+
+
+   
 
 ### Environment Setup
 
