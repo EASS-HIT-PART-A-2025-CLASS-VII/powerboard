@@ -10,7 +10,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 
 **Live Demo:** https://powerboard.up.railway.app
-
+**Live Demo:** https://youtu.be/19s1vaVCKrc
 ## Table of Contents
 
 - [About the Project](#about-the-project)
