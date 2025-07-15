@@ -2,10 +2,12 @@
 
 > A modern, real-time project and task management platform — built for teams who value clarity, collaboration, and a beautiful user experience.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)  [![React](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org/)  [![FastAPI](https://img.shields.io/badge/FastAPI-0.104-green.svg)](https://fastapi.tiangolo.com/)  [![Python](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)  [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue.svg)](https://www.postgresql.org/)  [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)  [![React](https://img.shields.io/badge/React-19-blue.svg)](https://reactjs.org/)  [![FastAPI](https://img.shields.io/badge/FastAPI-0.104-green.svg)](https://fastapi.tiangolo.com/)  [![Python](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)  [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue.svg)](https://www.postgresql.org/)  [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 
-**Live Demo:** https://powerboard.up.railway.app
-**Live Demo:** https://youtu.be/19s1vaVCKrc
+**Live site:** https://powerboard.up.railway.app
+
+**Live Demo:** [https://youtu.be/19s1vaVCKrc](https://youtu.be/yAP2RCswz6I)
+
 ## Table of Contents
 
 - [About the Project](#about-the-project)
@@ -558,7 +560,7 @@ Once started, the application is available at:
 | Method | Endpoint                        | Description                                  | Auth Required |
 | :----- | :------------------------------ | :------------------------------------------- | :------------ |
 | `POST` | `/api/ai/suggest_subtasks`      | Suggest subtasks for a given description.    | ✅            |
-
+| `POST` | `/api/ai/analyze_risks`      | Analyze project risks based on tasks and members.    | ✅            |
 ### Analytics Service
 
 | Method | Endpoint                            | Description                                      | Auth Required |
