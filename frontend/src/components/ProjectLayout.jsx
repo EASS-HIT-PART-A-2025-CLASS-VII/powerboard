@@ -1,28 +1,33 @@
+// ──────────────────────────────────────────────────────────────
+// src/components/ProjectLayout.jsx
+// ──────────────────────────────────────────────────────────────
 import React from 'react';
-import { Outlet }   from 'react-router-dom';
-import { Box }      from '@mui/material';
-import ProjectNavigation from './ProjectNavigation';
+import {Outlet} from 'react-router-dom';
+import {Box} from '@mui/material';
 
 export default function ProjectLayout() {
     return (
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', }}>
-            {/* secondary nav bar */}
-            <ProjectNavigation />
-
-            {/* page body — give it a bit of top-padding so
-          content never touches the nav’s border */}
-            <Box
+        <Box                    /* full height below Header + inside Shell */
+            sx={{flex: 1, display: 'flex', flexDirection: 'column'}}
+        >
+            <Box                  /* page body */
                 component="section"
                 sx={{
                     flexGrow: 1,
-                    p: { xs: 1, sm: 2, md: 1 },
-                    width: '100%',
-                    maxWidth: 'calc(100vw - 240px)',   /* leave room for sidebar */
+                    width: '100%',            /* always span 100 % */
+                    maxWidth: {
+                        xs: '100%',             /* no capping on xs / sm */
+                        md: 'calc(100vw - 240px)', /* leave room for the sidebar ≥ md */
+                        xl: '1800px',           /* ← Updated to match page maxWidth */
+                    },
+                    p: 0, // ← Remove padding since pages handle their own padding
                     mx: 'auto',
-
+                    display: 'flex',
+                    flexDirection: 'column',
+                    mt:-0.5,
                 }}
             >
-                <Outlet />
+                <Outlet/>
             </Box>
         </Box>
     );

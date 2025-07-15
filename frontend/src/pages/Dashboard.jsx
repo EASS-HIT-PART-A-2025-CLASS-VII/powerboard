@@ -1,4 +1,3 @@
-// src/pages/Dashboard.jsx
 import React, { useEffect, useState } from 'react';
 import { API } from '../api/axios';
 import {
@@ -86,40 +85,22 @@ export default function Dashboard() {
             sx={{
                 display: "flex",
                 flexDirection: "column",
-                p: { xs: 1, sm: 2, md: 8 },
-                mt: { xs: 1, md: 3 },
-                mx: "auto",
-                height: "88vh",
-                width: "100%",
-                maxWidth: { xs: "100%", md: "calc(100vw - 240px)", xl: "1600px" },
+                p: { xs: 1.5, sm: 2, md: 3, lg: 4 }, // Optimized padding
+                mt: { xs: 0.5, sm: 1, md: 2 }, // Reduced top margin
+                mx: { xs: 0.5, sm: 1, md: "auto" }, // Smaller side margins on mobile
+                minHeight: { xs: "calc(100vh - 100px)", md: "90vh" }, // More height usage
+                width: { xs: "calc(100vw - 8px)", sm: "calc(100vw - 16px)", md: "100%" }, // Use more viewport width
+                maxWidth: { xs: "100%", md: "calc(100vw - 240px)", xl: "1800px" }, // Increased max width
                 backdropFilter: "blur(18px)",
                 background: theme.palette.background.default,
                 border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: { xs: 1, md: 2 }, // Added missing borderRadius
                 boxShadow: "0 12px 40px rgba(0,0,0,0.4)",
                 color: "#fff",
             }}
         >
-            {/* Export button */}
-            <Tooltip title="Export Dashboard Data">
-                <IconButton
-                    onClick={() => setExportOpen(true)}
-                    sx={{
-                        position: 'fixed',
-                        bottom: 32,
-                        right: 32,
-                        background: 'linear-gradient(135deg,#1F8EF1,#5C9EFF)',
-                        color: '#fff',
-                        p: 2,
-                        zIndex: 10,
-                        '&:hover': { background: 'linear-gradient(135deg,#167ac6,#3b8eff)' },
-                    }}
-                >
-                    <Download />
-                </IconButton>
-            </Tooltip>
-
             {/* Metrics */}
-            <Grid container spacing={3} sx={{ mb: 5 }} justifyContent="center">
+            <Grid container spacing={{ xs: 2, md: 3 }} sx={{ mb: 5 }} justifyContent="center">
                 {metrics.map(m => (
                     <Grid key={m.title} item xs={12} sm={6} md={4} lg={3} sx={{ display: 'flex' }}>
                         <MetricsCard title={m.title} total={m.total} done={m.done} />
@@ -133,17 +114,15 @@ export default function Dashboard() {
                     display: 'flex',
                     flexDirection: { xs: 'column', md: 'row' },
                     gap: 3,
-                    flex: 1,
-                    minHeight: 0,
                     width: '100%',
+                    minHeight: { xs: 'auto', md: 450 }
                 }}
             >
                 {/* Bar chart */}
                 <Box
                     sx={{
                         width: { xs: '100%', md: '32%' },
-                        minWidth: 0,
-                        height: { xs: 200, md: '100%' },
+                        minHeight: { xs: 300, md: 'auto' },
                         display: 'flex',
                         flexDirection: 'column'
                     }}
@@ -159,8 +138,7 @@ export default function Dashboard() {
                 <Box
                     sx={{
                         flex: 1,
-                        minWidth: 0,
-                        height: { xs: 260, md: '60%' },
+                        minHeight: { xs: 300, md: 'auto' },
                         display: 'flex',
                         flexDirection: 'column'
                     }}
@@ -171,6 +149,23 @@ export default function Dashboard() {
                         subtitle="Last 6 months"
                     />
                 </Box>
+            </Box>
+
+            {/* Export button under charts */}
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
+                <Tooltip title="Export Dashboard Data">
+                    <IconButton
+                        onClick={() => setExportOpen(true)}
+                        sx={{
+                            background: 'linear-gradient(135deg,#1F8EF1,#5C9EFF)',
+                            color: '#fff',
+                            p: 2,
+                            '&:hover': { background: 'linear-gradient(135deg,#167ac6,#3b8eff)' },
+                        }}
+                    >
+                        <Download />
+                    </IconButton>
+                </Tooltip>
             </Box>
 
             <DashboardExportModal

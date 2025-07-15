@@ -4,7 +4,8 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
-import Box from '@mui/material/Box';
+import { Box, useMediaQuery, useTheme } from '@mui/material';
+import { useLocation } from 'react-router-dom';
 
 import Sidebar         from './components/Sidebar';
 import Header          from './components/Header';
@@ -55,12 +56,55 @@ function Protected({ children }) {
 /*  Shell: sidebar + header + outlet                            */
 /* ──────────────────────────────────────────────────────────── */
 function Shell() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  // Initialize as closed to prevent the open/close flicker on page load.
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
+
+  const location = useLocation();
+
+  // This single useEffect handles closing the sidebar on mobile
+  // when the screen size changes or when the user navigates.
+  useEffect(() => {
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+  }, [isMobile, location.pathname]);
+
+  const handleSidebarToggle = () => {
+    setSidebarOpen(!isSidebarOpen);
+  };
+
   return (
     <Box sx={{ display: 'flex', height: '100vh' }}>
-      <Sidebar />
-      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <Header />
-        <Box component="main" sx={{ flexGrow: 1, overflow: 'auto' }}>
+      <Sidebar
+        isMobile={isMobile}
+        isOpen={isSidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          marginLeft: {
+            xs: 0,
+            md: isSidebarOpen ? 0 : '-280px'
+          },
+          transition: theme.transitions.create('margin', {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
+        }}
+      >
+        <Header
+          onMenuClick={handleSidebarToggle}
+          sidebarOpen={isSidebarOpen}
+          isMobile={isMobile}
+        />
+        <Box sx={{ flexGrow: 1, overflow: 'auto', p: { xs: 2, sm: 3 } }}>
           <Outlet />
         </Box>
       </Box>

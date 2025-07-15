@@ -1,151 +1,113 @@
-// src/pages/BigTasksPage.jsx
-
+// ──────────────────────────────────────────────────────────────
+// src/pages/BigTasksPage.jsx  • Responsive with Filter Drawer
+// ──────────────────────────────────────────────────────────────
 import React, {useEffect, useState, useMemo, useRef} from 'react';
 import {
-    Box,
-    Typography,
-    Grid,
-    Card,
-    CardContent,
-    CardActions,
-    Button,
-    CircularProgress,
-    Chip,
-    TextField,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
-    InputAdornment,
-    Menu,
-    Divider,
-    IconButton, Tooltip
+    Box, Typography, Button, CircularProgress, TextField, FormControl,
+    Select, MenuItem, InputAdornment, Menu, Divider, IconButton,
+    Tooltip, Drawer
 } from '@mui/material';
-import {Search as SearchIcon, Calendar as CalendarIcon, Plus} from 'lucide-react';
+import {Search as SearchIcon, Calendar as CalendarIcon, Plus, SlidersHorizontal} from 'lucide-react';
 import {useParams, useNavigate} from 'react-router-dom';
 import {API} from '../api/axios';
 import CreateBigTaskModal from '../components/CreateBigTaskModal';
 import BigTaskDetailsModal from '../components/BigTaskDetailsModal';
-import BigTaskProgress from '../components/BigTaskProgress'; // ✅ New import
+import BigTaskProgress from '../components/BigTaskProgress';
 import BigTaskCard from '../components/BigTaskCard';
+import ModernFilterMenu from '../components/ModernFilterMenu';
+import ModernSelectMenu from '../components/ModernSelectMenu';
 
 import {
-    filterTextFieldSx,
-    filterSelectBoxSx,
-    filterSelectSx,
-    dueButtonSx,
-    dueMenuPaperSx,
-    dueMenuItemSx,
-    dueDividerSx,
-    dueInputBoxSx,
-    dueTypographySx,
-    dueTextFieldSx,
-    dueApplyButtonSx,
+    filterTextFieldSx, filterSelectBoxSx, filterSelectSx, dueButtonSx
 } from '../themes/filterStyles';
-
-
 
 export default function BigTasksPage() {
     const {projectId} = useParams();
     const navigate = useNavigate();
     const containerRef = useRef(null);
 
-    // Data
     const [project, setProject] = useState(null);
     const [bigTasks, setBigTasks] = useState([]);
     const [loading, setLoading] = useState(true);
-
-    // Modals
     const [createOpen, setCreateOpen] = useState(false);
     const [detailsOpen, setDetailsOpen] = useState(false);
-    const [selectedTask, setSelectedTask] = useState(null);
+    const [selected, setSelected] = useState(null);
 
-    // Filters
+    const [rawSearch, setRawSearch] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [priorityFilter, setPriorityFilter] = useState('');
     const [dueFilter, setDueFilter] = useState('');
     const [sortBy, setSortBy] = useState('created_desc');
 
-    // Month picker state
-    const [dueMenuAnchor, setDueMenuAnchor] = useState(null);
-    const [monthYear, setMonthYear] = useState('');
-    const completedCount = useMemo(() => bigTasks.filter(t => t.status === 'Done').length, [bigTasks]);
-    const [rawSearch, setRawSearch] = useState(searchTerm);
+    const [dueAnchor, setDueAnchor] = useState(null);
+    const [sortAnchor, setSortAnchor] = useState(null);
+    const [statusAnchor, setStatusAnchor] = useState(null);
+    const [priorityAnchor, setPriorityAnchor] = useState(null);
 
-    // 🔥 snappier debounce: 50ms
+    const [monthYear, setMonthYear] = useState('');
+    const [drawerOpen, setDrawerOpen] = useState(false);
+
+    const sortOptions = [
+        { value: 'created_desc', label: 'Newest Created' },
+        { value: 'created_asc', label: 'Oldest Created' },
+        { value: 'due_asc', label: 'Soonest Due' },
+        { value: 'due_desc', label: 'Latest Due' },
+    ];
+
+    const statusOptions = [
+        { value: '', label: 'All Statuses' },
+        { value: 'To Do', label: 'To Do' },
+        { value: 'In Progress', label: 'In Progress' },
+        { value: 'Done', label: 'Done' },
+    ];
+
+    const priorityOptions = [
+        { value: '', label: 'All Priorities' },
+        { value: 'Highest', label: 'Highest' },
+        { value: 'High', label: 'High' },
+        { value: 'Medium', label: 'Medium' },
+        { value: 'Low', label: 'Low' },
+        { value: 'Lowest', label: 'Lowest' },
+    ];
+
     useEffect(() => {
-        const timeout = setTimeout(() => setSearchTerm(rawSearch), 50);
-        return () => clearTimeout(timeout);
+        const t = setTimeout(() => setSearchTerm(rawSearch), 50);
+        return () => clearTimeout(t);
     }, [rawSearch]);
 
-    // Fetch project & tasks
     useEffect(() => {
-        API.project.get(`/projects/${projectId}`)
-            .then(r => setProject(r.data))
-            .catch(console.error);
-        API.project.get('/projects/big_tasks/big_tasks/', {params: {project_id: projectId, mine_only: true}})
-            .then(r => setBigTasks(r.data))
-            .catch(console.error)
-            .finally(() => setLoading(false));
+        async function load() {
+            try {
+                const [projR, tasksR] = await Promise.all([
+                    API.project.get(`/projects/${projectId}`),
+                    API.project.get('/projects/big_tasks/big_tasks/', {
+                        params: {project_id: projectId, mine_only: true}
+                    }),
+                ]);
+                setProject(projR.data);
+                setBigTasks(tasksR.data);
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        load();
     }, [projectId]);
 
-    // Handlers
-    const handleCreated = bt => setBigTasks(prev => [bt, ...prev]);
+    const doneCount = useMemo(() => bigTasks.filter(t => t.status === 'Done').length, [bigTasks]);
 
-    const handleUpdated = bt => {
-        setBigTasks(prev => prev.map(x => (x.id === bt.id ? bt : x)));
-        setSelectedTask(bt);
-
-    };
-
-    // **NEW**: remove epic immediately after deletion
-    const handleDeleted = id => {
-        setBigTasks(prev => prev.filter(bt => bt.id !== id));
-        setSelectedTask(null);
-        setDetailsOpen(false);
-    };
-
-    const openDueMenu = e => setDueMenuAnchor(e.currentTarget);
-    const closeDueMenu = () => {
-        setDueMenuAnchor(null);
-        setMonthYear('');
-    };
-    const applyMonthYear = () => {
-        if (monthYear) setDueFilter(monthYear);
-        closeDueMenu();
-    };
-    const clearFilters = () => {
-        setSearchTerm('');
-        setStatusFilter('');
-        setPriorityFilter('');
-        setDueFilter('');
-        setMonthYear('');
-    };
-
-    const filteredTasks = useMemo(() => {
+    const filtered = useMemo(() => {
         const now = new Date();
-
         return bigTasks.filter(bt => {
-            // 1. Text search
-            if (searchTerm && !bt.title.toLowerCase().includes(searchTerm.toLowerCase())) {
-                return false;
-            }
+            if (searchTerm && !bt.title.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+            if (statusFilter && bt.status !== statusFilter) return false;
+            if (priorityFilter && bt.priority !== priorityFilter) return false;
 
-            // 2. Status filter
-            if (statusFilter && bt.status !== statusFilter) {
-                return false;
-            }
-
-            // 3. Priority filter
-            if (priorityFilter && bt.priority !== priorityFilter) {
-                return false;
-            }
-
-            // 4. Due date filtering
             if (dueFilter) {
                 const due = bt.due_date ? new Date(bt.due_date) : null;
-
                 switch (dueFilter) {
                     case 'overdue':
                         return due && due < now;
@@ -160,194 +122,422 @@ export default function BigTasksPage() {
                     case 'none':
                         return !due;
                     default:
-                        if (/^\d{4}-\d{2}$/.test(dueFilter)) {
-                            if (!due) return false;
-                            const [yr, mo] = dueFilter.split('-').map(Number);
-                            return due.getFullYear() === yr && due.getMonth() + 1 === mo;
+                        if (/^\d{4}-\d{2}$/.test(dueFilter) && due) {
+                            const [y, m] = dueFilter.split('-').map(Number);
+                            return due.getFullYear() === y && due.getMonth() + 1 === m;
                         }
                         return true;
                 }
             }
-
             return true;
         });
     }, [bigTasks, searchTerm, statusFilter, priorityFilter, dueFilter]);
 
-// Sorting logic
-    const sortedTasks = useMemo(() => {
-        const tasks = filteredTasks.slice();
+    const sorted = useMemo(() => {
+        const list = [...filtered];
+        const cmp = (a, b, key, asc = true) =>
+            (asc ? +new Date(a[key]) - +new Date(b[key]) : +new Date(b[key]) - +new Date(a[key]));
         switch (sortBy) {
             case 'created_asc':
-                tasks.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-                break;
+                return list.sort((a, b) => cmp(a, b, 'created_at', true));
             case 'due_asc':
-                tasks.sort((a, b) => {
-                    if (!a.due_date) return 1;
-                    if (!b.due_date) return -1;
-                    return new Date(a.due_date) - new Date(b.due_date);
-                });
-                break;
+                return list.sort((a, b) => cmp(a, b, 'due_date', true));
             case 'due_desc':
-                tasks.sort((a, b) => {
-                    if (!a.due_date) return 1;
-                    if (!b.due_date) return -1;
-                    return new Date(b.due_date) - new Date(a.due_date);
-                });
-                break;
-            case 'created_desc':
+                return list.sort((a, b) => cmp(a, b, 'due_date', false));
             default:
-                tasks.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-                break;
+                return list.sort((a, b) => cmp(a, b, 'created_at', false));
         }
-        return tasks;
-    }, [filteredTasks, sortBy]);
+    }, [filtered, sortBy]);
 
     const dueLabel = (() => {
         if (!dueFilter) return 'All';
         if (/^\d{4}-\d{2}$/.test(dueFilter)) {
-            const [yr, mo] = dueFilter.split('-');
-            return `${mo}/${yr}`;
+            const [y, m] = dueFilter.split('-');
+            return `${m}/${y}`;
         }
-        return {
-            overdue: 'Overdue',
-            today: 'Due Today',
-            week: 'Next 7 Days',
-            none: 'No Due Date',
-        }[dueFilter];
+        return {overdue: 'Overdue', today: 'Due Today', week: 'Next 7 Days', none: 'No Due Date'}[dueFilter];
     })();
+
+    const sortLabel = sortOptions.find(opt => opt.value === sortBy)?.label || 'Sort By';
+    const statusLabel = statusOptions.find(opt => opt.value === statusFilter)?.label || 'Status';
+    const priorityLabel = priorityOptions.find(opt => opt.value === priorityFilter)?.label || 'Priority';
+
+    const clearFilters = () => {
+        setRawSearch('');
+        setSearchTerm('');
+        setStatusFilter('');
+        setPriorityFilter('');
+        setDueFilter('');
+        setMonthYear('');
+        setDueAnchor(null);
+        setSortAnchor(null);
+        setStatusAnchor(null);
+        setPriorityAnchor(null);
+    };
+
+    const closeDueMenu = () => {
+        setDueAnchor(null);
+        setMonthYear('');
+    };
+
+    const applyMonthYear = () => {
+        if (monthYear) setDueFilter(monthYear);
+        closeDueMenu();
+    };
 
     if (loading) {
         return (
-            <Box
-                sx={{
-                    width: '100%',
-                    maxWidth: {xs: '100%', md: 'calc(100vw - 240px)', xl: '1600px'},
-                    minHeight: '87vh',
-                    mx: 'auto',
-                    mt: { xs: 1, md: 0 },
-                    boxSizing: 'border-box',
-                    backdropFilter: 'blur(18px)',
-                    background: theme => theme.palette.background.default,  // ← use your theme
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    p: { xs: 1, sm: 2, md: 4 },
-                }}
-            >
-                <CircularProgress sx={{ color: '#6C63FF' }} />
+            <Box sx={{
+                width: '100%',
+                minHeight: '88vh',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center'
+            }}>
+                <CircularProgress sx={{color: '#6C63FF'}}/>
             </Box>
         );
     }
 
-
-    // MAIN BOX (replace current)
     return (
         <Box
-            ref={containerRef}
             id="main-box"
+            ref={containerRef}
             sx={{
-                width: '100%',
-                maxWidth: { xs: '100%', md: 'calc(100vw - 240px)', xl: '1600px' },
-                height: '87vh', // <- force height, NOT minHeight!
-                mx: 'auto',
-                mt: { xs: 1, md: 0},
-                boxSizing: 'border-box',
+                display: 'flex', flexDirection: 'column',
+                p: { xs: 1.5, sm: 2, md: 3, lg: 4 }, // Optimized padding
+                mt: { xs: 0.5, sm: 1, md: 2 }, // Reduced top margin
+                mx: { xs: 0.5, sm: 1, md: 'auto' }, // Smaller side margins on mobile
+                minHeight: { xs: 'calc(100vh - 100px)', md: '90vh' }, // More height usage
+                width: { xs: 'calc(100vw - 8px)', sm: 'calc(100vw - 16px)', md: '100%' }, // Use more viewport width
+                maxWidth: { xs: '100%', md: 'calc(100vw - 240px)', xl: '1800px' }, // Increased max width
                 backdropFilter: 'blur(18px)',
-                background: theme => theme.palette.background.default,  // ← use your theme
+                background: t => t.palette.background.default,
                 border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: { xs: 1, md: 2 }, // Smaller border radius on mobile
                 boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
-                p: { xs: 3, sm: 2, md: 3 },
+                color: '#fff',
             }}
         >
-            {/* ✅ Updated Header */}
-            <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2}}>
-                {/* Left: Project title and subtitle */}
-                <Box>
+            {/* header */}
+            <Box sx={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'flex-start', // align to top instead of center
+                justifyContent: 'space-between',
+                mb: {xs: 2, sm: 3},
+                gap: {xs: 1, sm: 2},
+                minHeight: 48, // ensure consistent height
+            }}>
+                <Box sx={{flex: 1, minWidth: 0, mr: 1}}> {/* add right margin */}
                     <Typography
-                        variant="h3"
+                        variant={{xs: 'subtitle1', sm: 'h5', md: 'h4'}}
+                        fontWeight={{xs: 500, sm: 800}}
                         sx={{
-                            fontWeight: 800,
-                            p: 1,
-                            fontSize: '2.5rem',
-                            color: '#ffffff',
-                            letterSpacing: '0.5px',
-                            textTransform: 'uppercase',
-                            fontFamily: '"Poppins", "Roboto", sans-serif',
-                            textShadow: '0 0 8px rgba(255,255,255,0.1), 0 0 12px rgba(255,255,255,0.15)',
-                            animation: 'pulse 3s ease-in-out infinite',
-                            '@keyframes pulse': {
-                                '0%': {textShadow: '0 0 6px rgba(255,255,255,0.15)'},
-                                '50%': {textShadow: '0 0 18px rgba(255,255,255,0.4)'},
-                                '100%': {textShadow: '0 0 6px rgba(255,255,255,0.15)'},
-                            }
+                            fontSize: {xs: '16px', sm: '20px', md: '24px'},
+                            lineHeight: {xs: 1.3, sm: 1.4}, // slightly more space
+                            wordBreak: 'break-word', // allow title to break
+                            overflowWrap: 'break-word',
+                            hyphens: 'auto', // add hyphenation
+                            maxWidth: '100%'
                         }}
                     >
                         {project?.title || ''}
                     </Typography>
-
-
-                    <Typography variant="body2" sx={{color: '#bbb', fontSize: '1rem', fontWeight: 500,p:1}}>
-                        {bigTasks.length} epics • {completedCount} done
+                    <Typography
+                        variant="body2"
+                        color="#bbb"
+                        sx={{
+                            ml: 0.5,
+                            fontSize: {xs: '10px', sm: '12px'},
+                            mt: {xs: 0.5, sm: 0}, // add small top margin on mobile
+                            fontWeight: {xs: 400, sm: 500},
+                            wordBreak: 'break-word'
+                        }}
+                    >
+                        {bigTasks.length} epics • {doneCount} done
                     </Typography>
                 </Box>
-
-                {/* Right: Button and progress aligned apart */}
-                <Box sx={{display: 'flex', alignItems: 'center', width: 'fit-content'}}>
-
-                    <Box sx={{ml: 'auto'}}>
-                        <BigTaskProgress completed={completedCount} total={bigTasks.length}/>
-                    </Box>
+                <Box sx={{
+                    flexShrink: 0,
+                    alignSelf: 'flex-start', // keep progress at top
+                    position: 'relative',
+                    mt: -1,
+                    zIndex: 1 // ensure it stays above other elements
+                }}>
+                    <BigTaskProgress completed={doneCount} total={bigTasks.length}/>
                 </Box>
             </Box>
 
-
-            {/* Filter Bar */}
+            {/* filters header */}
             <Box
                 sx={{
                     display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 1.5,
+                    justifyContent: 'space-between',
                     alignItems: 'center',
-                    mb: 4,
-                    px: 2,
-                    py: 1,
-                    backdropFilter: 'blur(8px)',
-                    background: theme => theme.palette.background.default,
-                    boxShadow: `
-      0 2px 12px rgba(0,0,0,0.2),
-      0 0 8px rgba(108,99,255,0.2)
-    `,
-                    width: '100%',
-                    justifyContent: 'center',
+                    mb: 3,
+                    gap: 2,
+                    flexWrap: 'wrap',
                 }}
             >
+                {/* left: desktop filters */}
                 <Box
                     sx={{
-                        display: 'flex',
+                        display: {xs: 'none', md: 'flex'},
                         flexWrap: 'wrap',
                         gap: 2,
                         alignItems: 'center',
-                        justifyContent: 'center', // always center horizontally
-                        width: '100%',
                     }}
                 >
                     <TextField
                         size="small"
-                        variant="outlined"
-                        placeholder="Search epics..."
-                        value={searchTerm}
+                        placeholder="Search epics…"
+                        value={rawSearch}
                         onChange={e => setRawSearch(e.target.value)}
-                        inputProps={{
-                            autoComplete: 'off',
-                            tabIndex: -1,           // ← this helps prevent random focus when clicking around
-                        }}
                         InputProps={{
-                            disableUnderline: true,
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon size={18} style={{color: '#bbb'}}/>
+                                </InputAdornment>
+                            ),
+                        }}
+                        sx={filterTextFieldSx}
+                    />
+                    <Button
+                        onClick={e => setSortAnchor(e.currentTarget)}
+                        variant="outlined"
+                        sx={dueButtonSx}
+                    >
+                        {sortLabel}
+                    </Button>
+                    <Button
+                        onClick={e => setStatusAnchor(e.currentTarget)}
+                        variant="outlined"
+                        sx={dueButtonSx}
+                    >
+                        {statusLabel}
+                    </Button>
+                    <Button
+                        onClick={e => setPriorityAnchor(e.currentTarget)}
+                        variant="outlined"
+                        sx={dueButtonSx}
+                    >
+                        {priorityLabel}
+                    </Button>
+                    <Button
+                        onClick={e => setDueAnchor(e.currentTarget)}
+                        variant="outlined"
+                        startIcon={<CalendarIcon size={16}/>}
+                        sx={dueButtonSx}
+                    >
+                        {dueLabel}
+                    </Button>
+                </Box>
+
+                {/* right: filter toggle & clear */}
+                <Box sx={{display: 'flex', alignItems: 'center', gap: 1, ml: 'auto'}}>
+                    {/* mobile filter toggle */}
+                    <Button
+                        variant="outlined"
+                        startIcon={<SlidersHorizontal size={14}/>}
+                        onClick={() => setDrawerOpen(true)}
+                        sx={{
+                            display: {xs: 'inline-flex', md: 'none'},
+                            minWidth: 'auto',
+                            px: {xs: 1.5, sm: 2},
+                            py: {xs: 0.5, sm: 0.75},
+                            fontSize: {xs: '12px', sm: '14px'},
+                            fontWeight: 500,
+                            height: {xs: 32, sm: 36},
+                            borderColor: 'rgba(255,255,255,0.2)',
+                            color: '#fff',
+                            '&:hover': {
+                                borderColor: 'rgba(255,255,255,0.3)',
+                                backgroundColor: 'rgba(255,255,255,0.05)'
+                            }
+                        }}
+                    >
+                        <span style={{display: {xs: 'none', sm: 'inline'}}}>Filters</span>
+                    </Button>
+                    {(rawSearch || statusFilter || priorityFilter || dueFilter) && (
+                        <Button onClick={clearFilters} sx={{
+                            color: '#bbb',
+                            textTransform: 'none',
+                            fontSize: {xs: 11, sm: 12},
+                            minWidth: 'auto',
+                            px: {xs: 1, sm: 1.5},
+                            py: {xs: 0.25, sm: 0.5}
+                        }}>
+                            Clear
+                        </Button>
+                    )}
+                    {/* Create Epic Button - moved here */}
+                    <Button
+                        variant="contained"
+                        startIcon={<Plus size={18}/>}
+                        onClick={() => setCreateOpen(true)}
+                        sx={{
+                            background: 'linear-gradient(135deg,#6C63FF,#9B78FF)',
+                            color: '#fff',
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            px: {xs: 1.5, sm: 3},
+                            py: {xs: 1, sm: 1.25},
+                            borderRadius: 2,
+                            boxShadow: '0 4px 12px rgba(108,99,255,0.4)',
+                            minWidth: {xs: 44, sm: 'auto'},
+                            '&:hover': {
+                                background: 'linear-gradient(135deg,#5a50e0,#8e6cf1)',
+                                boxShadow: '0 6px 16px rgba(108,99,255,0.5)',
+                                transform: 'translateY(-1px)',
+                            },
+                            transition: 'all 0.2s ease-in-out',
+                            '& .MuiButton-startIcon': {
+                                margin: {xs: 0, sm: '0 8px 0 -4px'}
+                            }
+                        }}
+                    >
+                        <Box sx={{display: {xs: 'none', sm: 'inline'}}}>
+                            Create Epic
+                        </Box>
+                    </Button>
+                </Box>
+            </Box>
+
+            {/* Modern Due Date Filter Menu - Moved outside filter container */}
+            <ModernFilterMenu
+                open={Boolean(dueAnchor)}
+                anchorEl={dueAnchor}
+                onClose={closeDueMenu}
+                value={dueFilter}
+                onChange={setDueFilter}
+                monthYear={monthYear}
+                setMonthYear={setMonthYear}
+                onApplyMonthYear={applyMonthYear}
+            />
+            <ModernSelectMenu
+                open={Boolean(sortAnchor)}
+                anchorEl={sortAnchor}
+                onClose={() => setSortAnchor(null)}
+                value={sortBy}
+                onChange={setSortBy}
+                options={sortOptions}
+                title="Sort by"
+            />
+            <ModernSelectMenu
+                open={Boolean(statusAnchor)}
+                anchorEl={statusAnchor}
+                onClose={() => setStatusAnchor(null)}
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={statusOptions}
+                title="Filter by Status"
+            />
+            <ModernSelectMenu
+                open={Boolean(priorityAnchor)}
+                anchorEl={priorityAnchor}
+                onClose={() => setPriorityAnchor(null)}
+                value={priorityFilter}
+                onChange={setPriorityFilter}
+                options={priorityOptions}
+                title="Filter by Priority"
+            />
+
+            {/* epic grid */}
+            <Box
+                sx={{
+                    flex: 1,
+                    overflowY: 'auto',
+                    pr: 1,
+                    p:0.5,
+                    // for debugging
+                    "&::-webkit-scrollbar": {width: 8},
+                    "&::-webkit-scrollbar-thumb": {
+                        backgroundColor: "rgba(108,99,255,0.4)",
+                        borderRadius: 8,
+                        border: "2px solid transparent",
+                        backgroundClip: "content-box",
+                    },
+                    "&::-webkit-scrollbar-thumb:hover": {
+                        backgroundColor: "rgba(108,99,255,0.7)",
+                    },
+                }}
+            >
+                <Box
+                    sx={{
+                        display: "grid",
+                        gridTemplateColumns: {
+                            xs: "repeat(auto-fit, minmax(280px, 1fr))",
+                            sm: "repeat(auto-fit, minmax(300px, 1fr))",
+                        },
+                        gap: {xs: 1, sm: 1.5},
+                        mt: 1,
+                        ml: 1.5,
+                        justifyItems: "center",
+                    }}
+                >
+                    {sorted.map(bt => (
+                        <BigTaskCard
+                            key={bt.id}
+                            bt={bt}
+                            onNavigate={() => navigate(`/projects/${projectId}/board?epicId=${bt.id}`)}
+                            onDetails={() => {
+                                setSelected(bt);
+                                setDetailsOpen(true);
+                            }}
+                        />
+                    ))}
+                </Box>
+            </Box>
+
+
+            {/* modals */}
+            <CreateBigTaskModal
+                open={createOpen}
+                onClose={() => setCreateOpen(false)}
+                projectId={projectId}
+                onCreated={bt => setBigTasks(prev => [bt, ...prev])}
+            />
+            {selected && (
+                <BigTaskDetailsModal
+                    open={detailsOpen}
+                    onClose={() => setDetailsOpen(false)}
+                    bigTask={selected}
+                    onUpdated={bt => setBigTasks(prev => prev.map(x => x.id === bt.id ? bt : x))}
+                    onDeleted={id => {
+                        setBigTasks(prev => prev.filter(x => x.id !== id));
+                        setSelected(null);
+                        setDetailsOpen(false);
+                    }}
+                    container={containerRef.current}
+                />
+            )}
+
+            {/* 📱 mobile filter drawer */}
+            <Drawer
+                anchor="bottom"
+                open={drawerOpen}
+                onClose={() => setDrawerOpen(false)}
+                PaperProps={{
+                    sx: {
+                        borderTopLeftRadius: 12,
+                        borderTopRightRadius: 12,
+                        background: t => t.palette.background.default,
+                        p: 3,
+                    },
+                }}
+            >
+                <Typography variant="h6" fontWeight={600} textAlign="center" mb={2}>
+                    Filters
+                </Typography>
+                <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
+                    {/* Search */}
+                    <TextField
+                        size="small"
+                        placeholder="Search epics…"
+                        value={rawSearch}
+                        onChange={e => setRawSearch(e.target.value)}
+                        InputProps={{
                             startAdornment: (
                                 <InputAdornment position="start">
                                     <SearchIcon size={18} style={{color: '#bbb'}}/>
@@ -357,296 +547,73 @@ export default function BigTasksPage() {
                         sx={filterTextFieldSx}
                     />
 
-                    <FormControl size="small" sx={filterSelectBoxSx}>
-                        <Select
-                            value={sortBy}                               // '' means default order
-                            onChange={e => setSortBy(e.target.value)}
-                            displayEmpty
-                            variant="outlined"
-                            renderValue={selected =>
-                                selected
-                                    ? (
-                                        {
-                                            created_desc: 'Newest Created',
-                                            created_asc: 'Oldest Created',
-                                            due_asc:     'Soonest Due',
-                                            due_desc:    'Latest Due',
-                                        }[selected]          // human-readable label
-                                    )
-                                    : <em>Sort By</em>       // placeholder when value === ''
-                            }
-                            sx={filterSelectSx}
-                            inputProps={{ 'aria-label': 'Sort By' }}
-                        >
-                            <MenuItem value="">
-                                <em>Default</em>           {/* reset to API / natural order */}
-                            </MenuItem>
-                            <MenuItem value="created_desc">Newest Created</MenuItem>
-                            <MenuItem value="created_asc">Oldest Created</MenuItem>
-                            <MenuItem value="due_asc">Soonest Due</MenuItem>
-                            <MenuItem value="due_desc">Latest Due</MenuItem>
-                        </Select>
-                    </FormControl>
+                    {/* Sort - Modern Button */}
+                    <Button
+                        onClick={e => setSortAnchor(e.currentTarget)}
+                        variant="outlined"
+                        sx={{
+                            ...dueButtonSx,
+                            width: '100%',
+                            justifyContent: 'flex-start',
+                        }}
+                        fullWidth
+                    >
+                        {sortLabel}
+                    </Button>
 
-                    <FormControl size="small" sx={filterSelectBoxSx}>
-                        <Select
-                            value={statusFilter}                     // ''  means “no filter”
-                            onChange={e => setStatusFilter(e.target.value)}
-                            displayEmpty
-                            variant="outlined"
-                            renderValue={selected =>
-                                selected ? selected : <em>Status</em>  // placeholder when value === ''
-                            }
-                            sx={filterSelectSx}
-                            inputProps={{ 'aria-label': 'Status' }}
-                        >
-                            {/* All / reset option – *not* disabled */}
-                            <MenuItem value="">
-                                <em>All</em>
-                            </MenuItem>
+                    {/* Status - Modern Button */}
+                    <Button
+                        onClick={e => setStatusAnchor(e.currentTarget)}
+                        variant="outlined"
+                        sx={{
+                            ...dueButtonSx,
+                            width: '100%',
+                            justifyContent: 'flex-start',
+                        }}
+                        fullWidth
+                    >
+                        {statusLabel}
+                    </Button>
 
-                            <MenuItem value="To Do">To Do</MenuItem>
-                            <MenuItem value="In Progress">In Progress</MenuItem>
-                            <MenuItem value="Done">Done</MenuItem>
-                        </Select>
-                    </FormControl>
+                    {/* Priority - Modern Button */}
+                    <Button
+                        onClick={e => setPriorityAnchor(e.currentTarget)}
+                        variant="outlined"
+                        sx={{
+                            ...dueButtonSx,
+                            width: '100%',
+                            justifyContent: 'flex-start',
+                        }}
+                        fullWidth
+                    >
+                        {priorityLabel}
+                    </Button>
 
-                    {/* ───────────── Priority ───────────── */}
-                    <FormControl size="small" sx={filterSelectBoxSx}>
-                        <Select
-                            value={priorityFilter}                      // '' shows all priorities
-                            onChange={e => setPriorityFilter(e.target.value)}
-                            displayEmpty
-                            variant="outlined"
-                            renderValue={selected =>
-                                selected ? selected : <em>Priority</em>
-                            }
-                            sx={filterSelectSx}
-                            inputProps={{ 'aria-label': 'Priority' }}
-                        >
-                            <MenuItem value="">
-                                <em>All</em>
-                            </MenuItem>
-                            <MenuItem value="Highest">Highest</MenuItem>
-                            <MenuItem value="High">High</MenuItem>
-                            <MenuItem value="Medium">Medium</MenuItem>
-                            <MenuItem value="Low">Low</MenuItem>
-                            <MenuItem value="Lowest">Lowest</MenuItem>
-                        </Select>
-                    </FormControl>
-
-                    <Box>
-                        <Button
-                            onClick={openDueMenu}
-                            variant="outlined"
-                            startIcon={<CalendarIcon size={16}/>}
-                            sx={dueButtonSx}
-                        >
-                            {dueLabel}
-                        </Button>
-                        <Menu
-                            anchorEl={dueMenuAnchor}
-                            open={Boolean(dueMenuAnchor)}
-                            onClose={closeDueMenu}
-                            PaperProps={{sx: dueMenuPaperSx}}
-                        >
-                            {['', 'overdue', 'today', 'week', 'none'].map(val => (
-                                <MenuItem
-                                    key={val}
-                                    selected={dueFilter === val}
-                                    onClick={() => {
-                                        setDueFilter(val);
-                                        closeDueMenu();
-                                    }}
-                                    sx={dueMenuItemSx}
-                                >
-                                    {{
-                                        '': 'All',
-                                        overdue: 'Overdue',
-                                        today: 'Due Today',
-                                        week: 'Next 7 Days',
-                                        none: 'No Due Date',
-                                    }[val]}
-                                </MenuItem>
-                            ))}
-
-                            <Divider sx={dueDividerSx}/>
-
-                            <Box sx={dueInputBoxSx}>
-                                <Typography variant="subtitle2" sx={dueTypographySx}>
-                                    By Month & Year
-                                </Typography>
-                                <TextField
-                                    type="month"
-                                    value={monthYear}
-                                    onChange={e => setMonthYear(e.target.value)}
-                                    size="small"
-                                    variant="filled"
-                                    inputProps={{autoComplete: 'off', tabIndex: -1}}
-
-                                    InputProps={{
-                                        disableUnderline: true,
-                                        sx: dueTextFieldSx
-                                    }}
-                                    fullWidth
-                                />
-                                <Button
-                                    onClick={applyMonthYear}
-                                    fullWidth
-                                    disabled={!monthYear}
-                                    sx={dueApplyButtonSx}
-                                >
-                                    Apply
-                                </Button>
-                            </Box>
-                        </Menu>
-                    </Box>
+                    {/* Due Date */}
+                    <Button
+                        onClick={e => setDueAnchor(e.currentTarget)}
+                        variant="outlined"
+                        startIcon={<CalendarIcon size={16}/>}
+                        sx={{
+                            ...dueButtonSx,
+                            width: '100%',
+                            justifyContent: 'flex-start',
+                        }}
+                        fullWidth
+                    >
+                        {dueLabel}
+                    </Button>
 
                     <Button
-                        onClick={clearFilters}
-                        variant="text"
-                        sx={{
-                            color: '#fff',
-                            textTransform: 'none',
-                            '&:hover': {color: '#6C63FF'}
-                        }}
+                        fullWidth
+                        variant="contained"
+                        sx={{mt: 2, background: '#6C63FF'}}
+                        onClick={() => setDrawerOpen(false)}
                     >
-                        Clear Filters
+                        Apply Filters
                     </Button>
                 </Box>
-            </Box>
-
-            {/* Scrollable Content Area */}
-            <Box
-                sx={{
-                    flexGrow: 1,
-                    overflowY: 'auto',
-                    overflowX: 'hidden',
-                    pb: 2,
-                    mt: 0,
-                    userSelect: 'none',
-                    pointerEvents: 'auto',
-                    outline: 'none !important',
-                    '&:focus': {
-                        outline: 'none !important',
-                    },
-                    '&::-webkit-scrollbar': {
-                        width: '8px',
-                    },
-                    '&::-webkit-scrollbar-track': {
-                        background: 'transparent',
-                    },
-                    '&::-webkit-scrollbar-thumb': {
-                        backgroundColor: 'rgba(108,99,255,0.4)',
-                        borderRadius: '8px',
-                        border: '2px solid transparent',
-                        backgroundClip: 'content-box',
-                    },
-                    '&::-webkit-scrollbar-thumb:hover': {
-                        backgroundColor: 'rgba(108,99,255,0.7)',
-                    },
-                    scrollbarWidth: 'thin',
-                    scrollbarColor: 'rgba(108,99,255,0.4) transparent',
-                }}
-                tabIndex={-1}
-                onMouseDown={e => e.preventDefault()}
-            >
-                {loading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 5 }}>
-                        <CircularProgress sx={{ color: '#6C63FF' }} />
-                    </Box>
-                ) : (
-                    <Box
-                        sx={{
-                            width: '100%',
-                            maxWidth: { xs: '100%', md: 'calc(100vw - 240px)', xl: '1800px' },
-                            mx: 'auto',
-                            pt: 1,
-                        }}
-                    >  <Grid container columnSpacing={1.5} rowSpacing={1} sx={{ width: '100%', ml: 5 }}>
-                        {sortedTasks.map(bt => (
-                            <Grid item xs={12} sm={6} md={3} key={bt.id}>
-                                <BigTaskCard
-                                    bt={bt}
-                                    onNavigate={() => navigate(`/projects/${projectId}/board?epicId=${bt.id}`)}
-                                    onDetails={() => {
-                                        setSelectedTask(bt);
-                                        setDetailsOpen(true);
-                                    }}
-                                />
-                            </Grid>
-                        ))}
-                    </Grid>
-                    </Box>
-
-                )}
-            </Box>
-
-            {/* Modals */}
-            <CreateBigTaskModal
-                open={createOpen}
-                onClose={() => setCreateOpen(false)}
-                projectId={projectId}
-                onCreated={handleCreated}
-            />
-            {selectedTask && (
-                <BigTaskDetailsModal
-                    open={detailsOpen}
-                    onClose={() => setDetailsOpen(false)}
-                    bigTask={selectedTask}
-                    onUpdated={handleUpdated}
-                    onDeleted={handleDeleted}    // ← Pass the delete callback here
-                    container={containerRef.current}
-                />
-            )}
-            <Tooltip title="Create Epic">
-                <IconButton
-                    onClick={() => setCreateOpen(true)}
-                    sx={{
-                        position: 'fixed',
-                        bottom: 32,
-                        right: 70,
-                        background: 'linear-gradient(135deg, #6C63FF, #9B78FF)',
-                        color: '#fff',
-                        p: 2,
-                        zIndex: 999,
-                        boxShadow: '0 6px 18px rgba(108,99,255,0.5)',
-                        '&:hover': {
-                            background: 'linear-gradient(135deg, #5a50e0, #8e6cf1)',
-                        }
-                    }}
-                >
-                    <Plus/>
-                </IconButton>
-            </Tooltip>
-
+            </Drawer>
         </Box>
     );
-}
-
-// color helpers
-function statusColor(status) {
-    switch (status) {
-        case 'Done':
-            return {bg: 'rgba(76,175,80,0.2)', fg: '#4caf50'};
-        case 'In Progress':
-            return {bg: 'rgba(33,150,243,0.2)', fg: '#2196f3'};
-        default:
-            return {bg: 'rgba(158,158,158,0.2)', fg: '#9e9e9e'};
-    }
-}
-
-function priorityColor(prio) {
-    switch (prio) {
-        case 'Highest':
-            return {bg: 'rgba(244,67,54,0.2)', fg: '#f44336'};
-        case 'High':
-            return {bg: 'rgba(255,152,0,0.2)', fg: '#ff9800'};
-        case 'Low':
-            return {bg: 'rgba(156,39,176,0.2)', fg: '#9c27b0'};
-        case 'Lowest':
-            return {bg: 'rgba(96,125,139,0.2)', fg: '#607d8b'};
-        default:
-            return {bg: 'rgba(158,158,158,0.2)', fg: '#9e9e9e'};
-    }
 }
